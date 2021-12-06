@@ -1,0 +1,126 @@
+#!/usr/bin/env node
+
+const fs = require('fs');
+const path = require('path');
+const util = require('util');
+const minimist = require('minimist');
+const mqttPacket = require('mqtt-packet');
+const chalk = require('chalk');
+const { createProxy } = require('../index');
+
+const args = minimist(process.argv.slice(2), {
+  boolean: ['x-amzn-mqtt-ca'],
+});
+
+if (args._.length < 3) {
+  console.error('usage: %s [options] <port> <forward-host> <forward-port>', path.basename(process.argv[1]));
+  console.error('');
+  console.error('options:');
+  console.error('  --ca <path/to/crt>');
+  console.error('  --cert <path/to/crt>');
+  console.error('  --key <path/to/key>');
+  console.error('  --up-ca <path/to/crt>');
+  console.error('  --up-cert <path/to/crt>');
+  console.error('  --up-key <path/to/crt>');
+  console.error('  --x-amzn-mqtt-ca');
+  process.exit(1);
+}
+
+var port = Number.parseInt(args._[0]);
+var upstreamHost = args._[1];
+var upstreamPort = Number.parseInt(args._[2]);
+
+const proxy = createProxy({
+  server: {
+    port,
+    ca: args.ca && fs.readFileSync(args.ca),
+    cert: args.cert && fs.readFileSync(args.cert),
+    key: args.key && fs.readFileSync(args.key),
+  },
+  upstream: {
+    port: upstreamPort,
+    host: upstreamHost,
+    ca: args['up-ca'] && fs.readFileSync(args['up-ca']),
+    cert: args['up-cert'] && fs.readFileSync(args['up-cert']),
+    key: args['up-key'] && fs.readFileSync(args['up-key']),
+    ALPNProtocols: args['x-amzn-mqtt-ca'] && ['x-amzn-mqtt-ca'],
+  },
+});
+
+let id = 0;
+
+proxy.on('connection', async ({ client, server }) => {
+  id++;
+
+  console.log(`${id} ${chalk.green('+++')}`);
+
+  const clientParser = mqttPacket.parser();
+  client.on('data', clientParser.parse.bind(clientParser));
+  clientParser.on('packet', inspect.bind(null, `${id} ${chalk.magenta('-->')}`));
+  client.on('end', end);
+
+  const serverParser = mqttPacket.parser();
+  server.on('data', serverParser.parse.bind(serverParser));
+  serverParser.on('packet', inspect.bind(null, `${id} ${chalk.cyan('<--')}`));
+
+  function inspect(prefix, data) {
+    switch (data.cmd) {
+      case 'connect':
+        console.log(
+          `${prefix} CONNECT clientId: ${data.clientId} username: ${data.username} password: ${data.password.toString(
+            'utf8'
+          )}`
+        );
+        break;
+
+      case 'connack':
+        console.log(`${prefix} CONACK`);
+        break;
+
+      case 'publish':
+        console.log(
+          `${prefix} msg: ${data.messageId || '-'} PUBLISH ${data.topic} ${util.inspect(
+            JSON.parse(data.payload.toString('utf8')),
+            {
+              colors: true,
+              depth: 10,
+            }
+          )}`
+        );
+        break;
+
+      case 'puback':
+        console.log(`${prefix} msg: ${data.messageId || '-'} PUBACK`);
+        break;
+
+      case 'subscribe':
+        for (const sub of data.subscriptions) {
+          console.log(`${prefix} msg: ${data.messageId || '-'} SUBSCRIBE ${sub.topic} QoS:${sub.qos}`);
+        }
+        break;
+
+      case 'suback':
+        console.log(`${prefix} msg: ${data.messageId || '-'} SUBACK`);
+        break;
+
+      case 'pingreq':
+        console.log(`${prefix} PING`);
+        break;
+
+      case 'pingresp':
+        console.log(`${prefix} PONG`);
+        break;
+
+      default:
+        console.log(prefix + ' ' + util.inspect(data, { colors: true }));
+    }
+  }
+
+  function end() {
+    console.log(`${id} ${chalk.red('---')}`);
+  }
+});
+
+proxy.listen(() => {
+  console.log('listening on port %d, forwarding to %s:%d', port, upstreamHost, upstreamPort);
+});
