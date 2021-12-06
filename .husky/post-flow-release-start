@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+VERSION=$1
+
+npm version --no-git-tag-version $VERSION

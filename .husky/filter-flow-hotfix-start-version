@@ -1,0 +1,12 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+VERSION=$1
+
+if [ -z "$VERSION" ]; then
+  CURRENT_VERSION=$(node -pe "require('./package.json').version")
+  VERSION=$(npx --no-install semver -i patch $CURRENT_VERSION)
+fi
+
+echo $VERSION
+exit 0
