@@ -1,8 +1,11 @@
 {
   "name": "mqtt-debug",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Eavesdrop on communication between an MQTT client and broker",
   "main": "index.js",
+  "bin": {
+    "mqtt-debug": "./bin/mqtt-debug"
+  },
   "scripts": {
     "test": "exit 0",
     "prepare": "husky install"
