@@ -2,6 +2,8 @@
 
 > Eavesdrop on communication between an MQTT client and broker
 
+[![Node.js Package](https://github.com/bytespider/mqtt-debug/actions/workflows/npm-publish.yml/badge.svg)](https://github.com/bytespider/mqtt-debug/actions/workflows/npm-publish.yml)
+
 MQTT-Debug leans heavily on the work of [mqtt-spy](https://github.com/jdiamond/mqtt-spy), but it's raw packet packet output wasn't enough.
 
 ## Install
