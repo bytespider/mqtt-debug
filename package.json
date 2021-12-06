@@ -4,6 +4,7 @@
   "description": "Eavesdrop on communication between an MQTT client and broker",
   "main": "index.js",
   "scripts": {
+    "test": "exit 0",
     "prepare": "husky install"
   },
   "repository": {
