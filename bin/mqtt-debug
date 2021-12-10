@@ -124,3 +124,7 @@ proxy.on('connection', async ({ client, server }) => {
 proxy.listen(() => {
   console.log('listening on port %d, forwarding to %s:%d', port, upstreamHost, upstreamPort);
 });
+
+process.on('SIGINT', () => {
+  process.exit(128);
+})
